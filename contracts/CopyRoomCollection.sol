@@ -47,7 +47,17 @@ contract CopyRoomCollection is ERC721, Owned {
         _;
     }
 
+    modifier onlyNFTOwnerOrApproved(uint256 id) {
+        address nftOwner = _ownerOf[id];
+        require(_ownerOf[id] == msg.sender || isApprovedForAll[nftOwner][msg.sender] || msg.sender == getApproved[id], "CopyRoom: Must be owner or approved account to burn");
+        _;
+    }
+
     constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) Owned() { }
+
+    receive() external payable {
+        depositOneToMyBank();
+    }
 
     function transferFrom(
         address from,
@@ -59,8 +69,8 @@ contract CopyRoomCollection is ERC721, Owned {
         ERC721.transferFrom(from, to, id);
     }
 
-    receive() external payable {
-        depositOneToMyBank();
+    function burn(uint256 id) public onlyNFTOwnerOrApproved(id) {
+        ERC721._burn(id);
     }
 
     function setBaseURI(string memory _baseURI) public onlyOwner {
