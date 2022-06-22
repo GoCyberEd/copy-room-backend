@@ -11,11 +11,14 @@
   "license": "ISC",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.6",
+    "@nomiclabs/hardhat-ganache": "^2.0.1",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "chai": "^4.3.6",
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.6.9",
-    "hardhat": "^2.9.9"
+    "ganache-cli": "^6.12.2",
+    "hardhat": "^2.9.9",
+    "solidity-coverage": "^0.7.21"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.6.0"

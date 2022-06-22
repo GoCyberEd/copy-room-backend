@@ -88,6 +88,9 @@ contract CopyRoomCollection is ERC721, Owned {
         }
         emit ModifyWhitelist(_accounts, b);
     }
+    function getMintWhitelistStatusForAccount(address account) public view returns ( bool ) {
+        return whitelistedMinters[account];
+    }
 
     function withdrawOneFromMyBank(uint256 amount) public {
         emit Withdrawal(msg.sender, amount);
@@ -101,7 +104,7 @@ contract CopyRoomCollection is ERC721, Owned {
         return depositOneToBank(msg.sender);
     }
     function depositOneToBank(address account) public payable returns (uint256) {
-        bankedOne[account].add(msg.value);
+        bankedOne[account] = bankedOne[account].add(msg.value);
         emit Deposit(account, msg.value);
         return bankedOne[account];
     }
@@ -111,10 +114,6 @@ contract CopyRoomCollection is ERC721, Owned {
 
     function tokenURI(uint256 id) public view override returns (string memory) {
         return baseURI; // TODO
-    }
-
-    function isOnWhitelist(address account) public view returns (bool) {
-        return whitelistedMinters[account];
     }
 
     function mintGroup(uint256 numberToMint, address destination, uint256 bonusOneOnFirstTransfer, bool bonusOnMint) public onlyWhitelistedMinter {
