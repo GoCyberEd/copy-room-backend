@@ -18,8 +18,10 @@ contract CopyRoomCollection is ERC721, Owned {
         uint256[] members;
     }
 
+    uint256 constant MAX_GROUPS_PER_ADDRESS = 1000;
+
     uint256 public nextMintId = 0;
-    uint256 public nextGroupId = 0;
+    uint256 public nextGroupId = 1; // Allow fixed length arrays "0" to be null
     string public baseURI = "";
 
     bool public whitelistOnlyMint = true;
@@ -29,6 +31,7 @@ contract CopyRoomCollection is ERC721, Owned {
 
     mapping(uint256 => Group) internal groupByGroupId;
     mapping(uint256 => Group) internal groupByTokenId;
+    mapping(address => Group[]) internal groupByOwnerId;
 
     event Deposit(address bank, uint256 value);
     event Withdrawal(address bank, uint256 value);
@@ -116,31 +119,74 @@ contract CopyRoomCollection is ERC721, Owned {
         return baseURI; // TODO
     }
 
-    function mintGroup(uint256 numberToMint, address destination, uint256 bonusOneOnFirstTransfer, bool bonusOnMint) public onlyWhitelistedMinter {
+    function mintGroup(
+        uint256 numberToMint,
+        address destination,
+        uint256 bonusOneOnFirstTransfer,
+        bool bonusOnMint) public payable onlyWhitelistedMinter returns (uint256){
+
+        if (msg.value > 0) {
+            depositOneToMyBank();
+        }
+
         uint256[] memory arr;
         Group memory g = Group(nextGroupId, msg.sender, true, bonusOneOnFirstTransfer, bonusOnMint, arr);
         groupByGroupId[g.id] = g;
+        groupByOwnerId[msg.sender].push(g);
         emit CreateGroup(g.id, msg.sender);
-        for (uint256 i = 0; i < numberToMint; i++) {
-            mintToGroup(g.id, destination);
-        }
+        mintToGroup(numberToMint, g.id, destination);
         nextGroupId ++;
+        return g.id;
     }
-    function mintToGroup(uint256 groupId, address mintDestination) public onlyWhitelistedMinter onlyGroupOwner(groupByGroupId[groupId]) {
+    function mintToGroup(
+        uint256 numberToMint,
+        uint256 groupId,
+        address mintDestination) public payable onlyWhitelistedMinter onlyGroupOwner(groupByGroupId[groupId]) {
+
+        if (msg.value > 0) {
+            depositOneToMyBank();
+        }
+
+        for (uint256 i = 0; i < numberToMint; i++) {
+            _mintSingleToGroup(groupId, mintDestination);
+        }
+    }
+    function _mintSingleToGroup(uint256 groupId, address mintDestination) internal {
         Group storage g = groupByGroupId[groupId];
         uint256 nftId = nextMintId;
         ERC721._safeMint(mintDestination, nftId);
-        nextMintId++;
+        groupByTokenId[nftId] = g;
+        transferBonusOne[nftId] = g.bonusOne;
         g.members.push(nftId);
+        if (g.bonusOnMint) {
+            _sendBonus(nftId, payable(mintDestination));
+        }
+        nextMintId++;
     }
     function setActiveBonusForGroup(uint256 groupId, bool b) public onlyGroupOwner(groupByGroupId[groupId]) {
         Group storage g = groupByGroupId[groupId];
         g.isBonusActive = b;
         emit ModifyGroupBonus(g.id, g.isBonusActive, g.bonusOne);
     }
+    function isGroupBonusActive(uint256 groupId) public view returns (bool) {
+        return groupByGroupId[groupId].isBonusActive;
+    }
     function getGroupMembers(uint256 groupId) public view returns (uint256[] memory) {
         Group storage g = groupByGroupId[groupId];
         return g.members;
+    }
+    function getOwnedGroupIdsByOwner(address groupOwner) public view returns (uint256[1000] memory){
+        uint256 len = groupByOwnerId[groupOwner].length;
+        uint256[MAX_GROUPS_PER_ADDRESS] memory ids;
+        for (uint256 i = 0; i < len || i >= MAX_GROUPS_PER_ADDRESS; i++) {
+            Group memory g = groupByOwnerId[groupOwner][i];
+            ids[i] = g.id;
+        }
+        return ids;
+    }
+    function getLastGroupIdByOwner(address groupOwner) public view returns (uint256) {
+        uint256 len = groupByOwnerId[groupOwner].length;
+        return groupByOwnerId[groupOwner][len - 1].id;
     }
 
     function _sendBonus(uint256 tokenId, address payable destination) internal {
